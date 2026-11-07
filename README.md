@@ -62,6 +62,19 @@ flowchart LR
    ```
 5. Add the bot to a group and chat. Watch every workflow step at http://localhost:8288.
 
+## Deploy it live (always-on, ₹0)
+
+Run TeamCaptain 24/7 without your laptop. In production the bot switches from long polling to a
+**webhook**, so the whole system is a single web service — hosted free on Render, with Neon
+(Postgres), Inngest Cloud (workflows) and Groq (LLM). No credit card needed.
+
+→ **Step-by-step guide: [docs/DEPLOY.md](docs/DEPLOY.md)**
+
+```bash
+uv run python -m tc.bot.set_webhook          # point Telegram at your deployed URL
+uv run python -m tc.bot.set_webhook --delete # revert to local long polling
+```
+
 ## Commands in the group
 `/tasks` · `/done N` · `/take N` · `/deadline N friday 5pm` · `/cancel N` · `/report` · `/help`
 

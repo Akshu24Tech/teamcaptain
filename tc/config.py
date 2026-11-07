@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ""
     telegram_api_base: str = "https://api.telegram.org"
     telegram_poll_timeout_s: int = 30
+    # Webhook mode (for always-on hosting). Empty = local long-polling only.
+    # public_url is the app's public HTTPS origin, e.g. https://teamcaptain.onrender.com
+    public_url: str = ""
+    # Shared secret Telegram echoes back in the X-Telegram-Bot-Api-Secret-Token header.
+    webhook_secret: str = ""
 
     # --- Infrastructure ---
     database_url: str = (

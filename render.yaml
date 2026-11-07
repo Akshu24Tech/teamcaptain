@@ -1,0 +1,30 @@
+# Render Blueprint: one free web service running TeamCaptain in webhook mode.
+# Deploy via https://dashboard.render.com → New → Blueprint → pick this repo.
+# Secrets (sync: false) are entered in the Render dashboard, never committed.
+services:
+  - type: web
+    name: teamcaptain
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      # --- LLM (Groq free tier) ---
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        value: llama-3.3-70b-versatile
+      # --- Telegram ---
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: WEBHOOK_SECRET
+        sync: false
+      # --- Database (Neon, asyncpg + ssl) ---
+      - key: DATABASE_URL
+        sync: false
+      # --- Inngest Cloud (production) ---
+      - key: INNGEST_DEV
+        value: "false"
+      - key: INNGEST_EVENT_KEY
+        sync: false
+      - key: INNGEST_SIGNING_KEY
+        sync: false

@@ -5,19 +5,26 @@ Run: `uvicorn tc.main:app --port 8000`
 
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
+import inngest
 import inngest.fast_api
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from sqlalchemy import select
 
+from tc.bot.handlers import handle_update
+from tc.bot.telegram import TelegramClient
+from tc.config import settings
 from tc.db import Commitment, Member, Team, create_tables, get_session, utcnow
 from tc.inngest_client import client
 from tc.repo import tracked_commitments
 from tc.scoring import TrackedItem, delivery_report
 from tc.workflows import FUNCTIONS
+
+log = logging.getLogger("teamcaptain.webhook")
 
 
 @asynccontextmanager
@@ -33,6 +40,38 @@ inngest.fast_api.serve(app, client, FUNCTIONS)
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+# --- Telegram webhook (always-on hosting; local dev uses tc.bot.poller instead) ---
+
+_tg: TelegramClient | None = None
+
+
+def _telegram() -> TelegramClient:
+    global _tg
+    if _tg is None:
+        _tg = TelegramClient()
+    return _tg
+
+
+async def send_event(name: str, data: dict[str, Any]) -> None:
+    await client.send(inngest.Event(name=name, data=data))
+
+
+@app.post("/telegram/webhook")
+async def telegram_webhook(request: Request) -> dict[str, bool]:
+    # Only active when a secret is configured; the secret proves the caller is Telegram.
+    if not settings.webhook_secret:
+        raise HTTPException(404, "webhook not enabled")
+    if request.headers.get("X-Telegram-Bot-Api-Secret-Token") != settings.webhook_secret:
+        raise HTTPException(403, "bad webhook secret")
+    update = await request.json()
+    try:
+        await handle_update(update, _telegram(), send_event)
+    except Exception:
+        # One bad update must never 500 the webhook: Telegram would retry it forever.
+        log.exception("Failed to handle update %s", update.get("update_id"))
+    return {"ok": True}
 
 
 async def _team(session: Any, chat_id: int) -> Team:
