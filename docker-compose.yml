@@ -1,0 +1,36 @@
+name: teamcaptain
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: teamcaptain
+      POSTGRES_PASSWORD: teamcaptain_pw
+      POSTGRES_DB: teamcaptain
+    ports:
+      - "5434:5432"
+    volumes:
+      - tc_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U teamcaptain -d teamcaptain"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Durable workflow engine. Dashboard: http://localhost:8288
+  # It calls back into the FastAPI app on the host to run each step.
+  inngest-dev:
+    image: inngest/inngest:v1.45.1
+    restart: unless-stopped
+    command: >
+      inngest dev
+      -u http://host.docker.internal:${APP_PORT:-8000}/api/inngest
+    ports:
+      - "8288:8288"
+      - "8289:8289"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  tc_postgres_data:
