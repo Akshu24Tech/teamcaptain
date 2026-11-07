@@ -1,6 +1,13 @@
 # TeamCaptain 🧭
 
+[![CI](https://github.com/Akshu24Tech/teamcaptain/actions/workflows/ci.yml/badge.svg)](https://github.com/Akshu24Tech/teamcaptain/actions/workflows/ci.yml)
+[![tests](https://img.shields.io/badge/tests-63%20passing-3fb950?logo=pytest&logoColor=white)](https://github.com/Akshu24Tech/teamcaptain/actions/workflows/ci.yml)
+[![python](https://img.shields.io/badge/python-3.11%2B-4f9dff?logo=python&logoColor=white)](pyproject.toml)
+[![cost](https://img.shields.io/badge/cost-%E2%82%B90-3fb950)](#)
+
 **An autonomous AI agent that turns group conversations into verified, self-managing commitments.**
+
+🌐 **[Live project page →](https://akshu24tech.github.io/teamcaptain/)**
 
 Teams don't assign work in Jira. They make promises in group chats ("I'll do the PPT by
 Friday", "Rahul DB kal tak dekh lena"), and those promises get lost. TeamCaptain sits in a

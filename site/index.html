@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TeamCaptain — group chat into verified commitments</title>
+<meta name="description" content="An autonomous AI agent that turns group-chat conversations into verified, self-managing commitments. Final-year B.Tech project, runs at ₹0.">
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2330;
+    --border: #2a3441;
+    --text: #e6edf3;
+    --muted: #9aa7b5;
+    --accent: #4f9dff;
+    --accent-2: #3fb950;
+    --warn: #d29922;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* Hero */
+  header.hero {
+    text-align: center;
+    padding: 96px 24px 72px;
+    background: radial-gradient(900px 400px at 50% -10%, rgba(79,157,255,0.15), transparent 70%);
+    border-bottom: 1px solid var(--border);
+  }
+  .hero .logo { font-size: 56px; }
+  .hero h1 {
+    font-size: clamp(36px, 6vw, 60px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin: 8px 0 4px;
+    background: linear-gradient(135deg, #e6edf3, #4f9dff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .hero .tagline {
+    font-size: clamp(16px, 2.4vw, 21px);
+    color: var(--muted);
+    max-width: 680px;
+    margin: 12px auto 28px;
+  }
+  .badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 28px; }
+  .badges img { height: 22px; }
+  .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 11px 22px; border-radius: 8px; font-weight: 600; font-size: 15px;
+    border: 1px solid var(--border); transition: transform .12s ease, border-color .12s ease;
+  }
+  .btn:hover { text-decoration: none; transform: translateY(-1px); }
+  .btn.primary { background: var(--accent); color: #04142e; border-color: var(--accent); }
+  .btn.ghost { background: var(--surface); color: var(--text); }
+
+  /* Sections */
+  section { padding: 64px 0; border-bottom: 1px solid var(--border); }
+  section h2 {
+    font-size: 28px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 8px;
+  }
+  section .lead { color: var(--muted); margin-bottom: 28px; max-width: 720px; }
+  .eyebrow { color: var(--accent); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; }
+
+  /* Problem callout */
+  .chat {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 20px; max-width: 460px; margin: 0 auto;
+  }
+  .msg { display: flex; gap: 10px; margin: 10px 0; align-items: flex-start; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; font-size: 14px;
+    display: grid; place-items: center; font-weight: 700; color: #04142e; }
+  .bubble { background: var(--surface-2); padding: 8px 12px; border-radius: 10px; font-size: 14px; }
+  .bubble .who { color: var(--accent); font-weight: 600; font-size: 12px; display: block; }
+  .detected { border: 1px solid var(--accent-2); box-shadow: 0 0 0 3px rgba(63,185,80,0.12); }
+  .detected .tag { color: var(--accent-2); font-size: 11px; font-weight: 700; display:block; margin-top:4px; }
+
+  /* Tables */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width: 520px; }
+  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  th { background: var(--surface); font-weight: 600; color: var(--text); }
+  tr:last-child td { border-bottom: none; }
+  td:first-child { color: var(--text); font-weight: 600; }
+  .num { font-family: var(--mono); color: var(--accent-2); }
+
+  /* Feature grid */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 22px;
+  }
+  .card .ico { font-size: 24px; margin-bottom: 10px; }
+  .card h3 { font-size: 16px; margin-bottom: 6px; }
+  .card p { color: var(--muted); font-size: 14px; }
+
+  /* Flow diagram */
+  .flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+  .node {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 16px; font-size: 14px; text-align: center; min-width: 110px;
+  }
+  .node small { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; }
+  .arrow { color: var(--accent); font-size: 20px; }
+  .node.hl { border-color: var(--accent-2); }
+
+  /* Code */
+  pre {
+    background: #010409; border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px 20px; overflow-x: auto; font-family: var(--mono); font-size: 13.5px;
+    color: #c9d1d9; line-height: 1.6;
+  }
+  pre .c { color: #6e7781; }
+  pre .k { color: var(--accent); }
+  code.inline { font-family: var(--mono); background: var(--surface-2); padding: 2px 6px; border-radius: 5px; font-size: 0.88em; }
+
+  .cmds { display: flex; flex-wrap: wrap; gap: 8px; }
+  .cmds span { font-family: var(--mono); background: var(--surface); border: 1px solid var(--border);
+    padding: 6px 11px; border-radius: 7px; font-size: 13px; }
+
+  /* Stack */
+  .stack { display: flex; flex-wrap: wrap; gap: 10px; }
+  .pill { background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+    padding: 7px 15px; font-size: 13.5px; }
+
+  footer { text-align: center; padding: 48px 24px; color: var(--muted); font-size: 14px; }
+  .note { color: var(--warn); font-size: 13px; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="logo">🧭</div>
+    <h1>TeamCaptain</h1>
+    <p class="tagline">An autonomous AI agent that turns group-chat conversations into
+      <strong>verified, self-managing commitments</strong>.</p>
+    <div class="badges">
+      <img src="https://img.shields.io/github/actions/workflow/status/Akshu24Tech/teamcaptain/ci.yml?branch=main&label=CI&logo=github" alt="CI status">
+      <img src="https://img.shields.io/badge/tests-63%20passing-3fb950?logo=pytest&logoColor=white" alt="63 tests passing">
+      <img src="https://img.shields.io/badge/python-3.11%2B-4f9dff?logo=python&logoColor=white" alt="Python 3.11+">
+      <img src="https://img.shields.io/badge/cost-%E2%82%B90-3fb950" alt="Runs at zero cost">
+    </div>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/Akshu24Tech/teamcaptain">★ View on GitHub</a>
+      <a class="btn ghost" href="#architecture">How it works ↓</a>
+    </div>
+  </div>
+</header>
+
+<section id="problem">
+  <div class="wrap">
+    <span class="eyebrow">The problem</span>
+    <h2>Teams don't assign work in Jira</h2>
+    <p class="lead">They make promises in group chats — and those promises get lost. TeamCaptain
+      sits in a Telegram group, spots a real commitment in casual English/Hinglish, asks the
+      accountable person to confirm, then tracks it for days: reminding, following up, escalating,
+      and finally producing a transparent delivery report.</p>
+    <div class="chat">
+      <div class="msg">
+        <div class="avatar" style="background:#4f9dff">A</div>
+        <div class="bubble"><span class="who">Ananya</span>when's the client deck due?</div>
+      </div>
+      <div class="msg">
+        <div class="avatar" style="background:#3fb950">R</div>
+        <div class="bubble detected"><span class="who">Rahul</span>I'll finish the PPT by Friday 👍
+          <span class="tag">✓ commitment detected → owner: Rahul · due: Fri · awaiting confirmation</span>
+        </div>
+      </div>
+      <div class="msg">
+        <div class="avatar" style="background:#d29922">T</div>
+        <div class="bubble"><span class="who">TeamCaptain</span>Rahul, I'll track "finish the PPT" for Friday 5 PM. Confirm? <strong>[Yes] [No]</strong></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="hard">
+  <div class="wrap">
+    <span class="eyebrow">Why it's interesting</span>
+    <h2>What makes it hard</h2>
+    <p class="lead">The whole design rests on one rule: <strong>the LLM never decides facts.</strong>
+      It points at evidence; code verifies it.</p>
+    <div class="table-wrap">
+      <table>
+        <tr><th>Problem</th><th>How it's solved</th></tr>
+        <tr><td>Detecting commitments in casual chat</td><td>LLM extraction with context, behind a cheap deterministic prefilter</td></tr>
+        <tr><td>LLMs hallucinate quotes, people, dates</td><td>A verifier: evidence must be a <em>verbatim</em> substring, owners must be real members, dates are computed by code</td></tr>
+        <tr><td>"kal", "next friday", "end of week", "15/11"</td><td>Deterministic deadline resolver with documented conventions and 30+ tests</td></tr>
+        <tr><td>Never tracking a wrong task</td><td>Human-in-the-loop: only the accountable person can confirm</td></tr>
+        <tr><td>Workflows that last days & survive crashes</td><td>Inngest durable steps, waits & cancellation; DB re-checked before every message</td></tr>
+        <tr><td>Fairness</td><td>Report counts only confirmed commitments; measures reliability, not workload</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="architecture">
+  <div class="wrap">
+    <span class="eyebrow">Architecture</span>
+    <h2>Pipeline</h2>
+    <p class="lead">The bot never calls the LLM and never sleeps. Durable Inngest functions own all
+      the long-running logic.</p>
+    <div class="flow">
+      <div class="node">Telegram group<small>messages · buttons</small></div>
+      <span class="arrow">→</span>
+      <div class="node">Bot poller<small>store · emit events</small></div>
+      <span class="arrow">→</span>
+      <div class="node">Prefilter<small>cheap, rule-based</small></div>
+      <span class="arrow">→</span>
+      <div class="node">LLM extractor<small>Groq / Ollama / Gemini</small></div>
+    </div>
+    <div class="flow" style="margin-top:12px">
+      <div class="node hl">Verifier<small>quotes · owners · dates</small></div>
+      <span class="arrow">→</span>
+      <div class="node">Confirm (human)<small>only the owner</small></div>
+      <span class="arrow">→</span>
+      <div class="node">Lifecycle<small>remind · overdue · escalate</small></div>
+      <span class="arrow">→</span>
+      <div class="node">Delivery report<small>confirmed only</small></div>
+    </div>
+  </div>
+</section>
+
+<section id="design">
+  <div class="wrap">
+    <span class="eyebrow">Design principles</span>
+    <h2>Non-negotiable rules</h2>
+    <div class="grid">
+      <div class="card"><div class="ico">🔒</div><h3>The LLM never decides facts</h3><p>It points at evidence; code verifies. Every LLM output field has a matching check in the verifier.</p></div>
+      <div class="card"><div class="ico">🙋</div><h3>Human-in-the-loop</h3><p>Nothing is tracked until the accountable person taps "Yes". Unconfirmed extractions never appear in reports.</p></div>
+      <div class="card"><div class="ico">♻️</div><h3>Workflow determinism</h3><p>Side effects and <code class="inline">now()</code> happen only inside durable steps, with IDs stable across replays.</p></div>
+      <div class="card"><div class="ico">🗄️</div><h3>DB is the source of truth</h3><p>Every notification re-checks status and schedule version before sending. Waits are an optimisation, not a guarantee.</p></div>
+      <div class="card"><div class="ico">💸</div><h3>Free only</h3><p>No paid APIs. Free LLM tiers or a local Ollama model, swapped via <code class="inline">.env</code>. Runs at ₹0.</p></div>
+      <div class="card"><div class="ico">📏</div><h3>Measure, don't claim</h3><p>Extraction changes are followed by the eval harness: precision, recall, deadline accuracy, false-alarm rate.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="eval">
+  <div class="wrap">
+    <span class="eyebrow">Evaluation</span>
+    <h2>Measured, not claimed</h2>
+    <p class="lead">A labeled dataset and harness report precision, recall, deadline accuracy and
+      false-alarm rate — and compare models.</p>
+    <div class="table-wrap">
+      <table>
+        <tr><th>Extractor</th><th>Precision</th><th>Recall</th><th>F1</th><th>Deadline acc.</th><th>False alarms</th></tr>
+        <tr><td>Rule-based baseline</td><td class="num">0.93</td><td class="num">0.74</td><td class="num">0.83</td><td class="num">0.92</td><td class="num">5.9%</td></tr>
+      </table>
+    </div>
+    <p class="note" style="margin-top:12px">⚠ On the 50-example hand-written seed set — treat as a smoke test. The rules were written alongside it, so they flatter themselves; the real test is the expanded dataset and the LLM comparison.</p>
+  </div>
+</section>
+
+<section id="start">
+  <div class="wrap">
+    <span class="eyebrow">Quick start</span>
+    <h2>Run it locally</h2>
+    <p class="lead">Needs Docker and <a href="https://docs.astral.sh/uv/">uv</a>. A free Groq key
+      (no card) or a local Ollama model, plus a Telegram bot token.</p>
+    <pre><span class="c"># install & bring up Postgres + Inngest dashboard</span>
+uv sync
+docker compose up -d
+
+<span class="c"># workflows + API           (terminal 1)</span>
+uv run uvicorn tc.main:app --port 8000
+<span class="c"># Telegram bot              (terminal 2)</span>
+uv run python -m tc.bot.poller
+
+<span class="c"># evaluation</span>
+uv run python -m tc.evaluation --extractor rules
+uv run pytest -q   <span class="c"># 63 tests on SQLite, fake Telegram, fake LLM</span></pre>
+    <h3 style="margin:28px 0 12px;font-size:16px">Commands in the group</h3>
+    <div class="cmds">
+      <span>/tasks</span><span>/done N</span><span>/take N</span>
+      <span>/deadline N friday 5pm</span><span>/cancel N</span><span>/report</span><span>/help</span>
+    </div>
+  </div>
+</section>
+
+<section id="stack" style="border-bottom:none">
+  <div class="wrap">
+    <span class="eyebrow">Built with</span>
+    <h2>Tech stack</h2>
+    <div class="stack">
+      <span class="pill">Python 3.11+</span>
+      <span class="pill">FastAPI</span>
+      <span class="pill">Inngest (durable workflows)</span>
+      <span class="pill">SQLAlchemy + Postgres</span>
+      <span class="pill">Telegram Bot API</span>
+      <span class="pill">OpenAI-compatible LLMs · Groq / Ollama / Gemini</span>
+      <span class="pill">Pydantic</span>
+      <span class="pill">pytest · ruff</span>
+      <span class="pill">GitHub Actions CI</span>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>TeamCaptain — final-year B.Tech project · <a href="https://github.com/Akshu24Tech/teamcaptain">github.com/Akshu24Tech/teamcaptain</a></p>
+</footer>
+
+</body>
+</html>
