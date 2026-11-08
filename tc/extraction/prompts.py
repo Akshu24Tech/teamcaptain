@@ -17,8 +17,17 @@ Classify each one:
 If the latest message ACCEPTS an earlier request made to the speaker ("ok", "haan kar dunga", \
 "sure"), output a "commitment" owned by the speaker, with the task taken from the earlier message.
 
-Do NOT extract:
-- work already finished ("I finished the PPT", "ho gaya")
+You are ALSO shown the team's currently-tracked OPEN TASKS. If the latest message says one of \
+them is now FINISHED ("PPT is done", "report bhej diya", "done with the slides", "#2 complete"), \
+report it as an UPDATE, not a new commitment:
+- intent: "done"
+- task_ref: which open task it refers to — copy its "#N" if given, else the task's words.
+- evidence_quote: the exact words from the latest message showing it is finished.
+Only do this when an open task plausibly matches. A status QUESTION ("is the report done?") is \
+NOT a completion. If no open task matches, output no update.
+
+Do NOT extract as a NEW commitment:
+- work already finished — that is an UPDATE (see above), never a new commitment.
 - status questions ("is the report done?")
 - vague group wishes with no owner ("someone should check this", "we need a logo")
 - jokes, greetings, links, opinions
@@ -35,13 +44,20 @@ It must be a verbatim substring of the latest message.
 
 Reply with ONLY this JSON object:
 {"commitments": [{"task": "...", "owner": "...", "kind": "...", "deadline_phrase": null, \
-"evidence_quote": "..."}]}
-Use {"commitments": []} when there are none.
+"evidence_quote": "..."}],
+ "updates": [{"intent": "done", "task_ref": "...", "evidence_quote": "..."}]}
+Use empty lists when there are none.
 """
 
 
 def build_user_prompt(inp: ExtractionInput) -> str:
     lines = [f"Team members: {', '.join(inp.members)}"]
+    if inp.open_tasks:
+        lines.append("Open tasks already being tracked:")
+        lines.extend(
+            f"- #{t.short_no}: {t.task}" + (f" (owner: {t.owner})" if t.owner else "")
+            for t in inp.open_tasks
+        )
     if inp.context:
         lines.append("Earlier messages (oldest first):")
         lines.extend(f"- {c.speaker}: {c.text}" for c in inp.context)

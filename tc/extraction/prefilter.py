@@ -36,8 +36,20 @@ _ACCEPT_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Someone reporting a tracked task is finished. Only meaningful when tasks are open;
+# the verifier drops it if it matches none, and the human still confirms the close.
+_DONE_RE = re.compile(
+    r"\b(done|finished|completed|complete|submitted|sent it|wrapped up|ho gaya|ho gya|"
+    r"kar diya|kar liya|bana diya|bana li|bhej diya|likh diya|de diya)\b",
+    re.IGNORECASE,
+)
+# A question about status isn't a completion report — don't treat "is it done?" as done.
+_QUESTION_RE = re.compile(r"\b(is|are|kya|kab|when|has|have)\b.*\?|\?\s*$", re.IGNORECASE)
 
-def should_extract(text: str, *, has_context: bool) -> tuple[bool, str]:
+
+def should_extract(
+    text: str, *, has_context: bool, has_open_tasks: bool = False
+) -> tuple[bool, str]:
     """Return (pass?, reason). The reason is logged so the gate stays auditable."""
     stripped = text.strip()
     if not stripped:
@@ -46,6 +58,8 @@ def should_extract(text: str, *, has_context: bool) -> tuple[bool, str]:
         return False, "bot_command"
     if _CUE_RE.search(stripped):
         return True, "commitment_cue"
+    if has_open_tasks and _DONE_RE.search(stripped) and not _QUESTION_RE.search(stripped):
+        return True, "completion_cue"
     if has_context and _ACCEPT_RE.search(stripped):
         return True, "acceptance_reply"
     return False, "no_cue"

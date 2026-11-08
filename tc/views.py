@@ -74,6 +74,17 @@ def proposal(v: CommitmentView) -> tuple[str, dict[str, Any]]:
     return "\n".join(lines), markup
 
 
+def confirm_done(v: CommitmentView, evidence_quote: str) -> tuple[str, dict[str, Any]]:
+    """Detected 'I finished it' in chat — ask the owner to confirm before closing."""
+    c = v.commitment
+    text = (
+        f"✅ {v.decider_tag}, did you finish #{c.short_no}: <b>{esc(c.task)}</b>?\n"
+        f"<i>Because you wrote:</i> “{esc(evidence_quote)}”"
+    )
+    markup = buttons([[("✅ Yes, done", f"d:{c.id}"), ("↩️ No, still open", f"dx:{c.id}")]])
+    return text, markup
+
+
 def reminder(v: CommitmentView) -> tuple[str, dict[str, Any]]:
     c = v.commitment
     text = (

@@ -20,7 +20,7 @@ from tc.db import (
     as_aware,
     utcnow,
 )
-from tc.extraction.schema import Candidate, ChatLine, ExtractionInput
+from tc.extraction.schema import Candidate, ChatLine, ExtractionInput, OpenTask
 
 
 async def upsert_team(session: AsyncSession, chat_id: int, title: str) -> Team:
@@ -108,12 +108,21 @@ async def build_extraction_input(
         for m in reversed(previous)
         if m.member_id in by_id
     ]
+    open_tasks = [
+        OpenTask(
+            short_no=c.short_no,
+            task=c.task,
+            owner=by_id[c.owner_member_id].display_name if c.owner_member_id in by_id else None,
+        )
+        for c in await open_commitments(session, message.team_id)
+    ]
     inp = ExtractionInput(
         speaker=by_id[message.member_id].display_name,
         text=message.text,
         sent_at=as_aware(message.sent_at),  # type: ignore[arg-type]
         members=[m.display_name for m in members],
         context=context,
+        open_tasks=open_tasks,
     )
     aliases = {f"@{m.username}": m.display_name for m in members if m.username}
     name_to_id = {m.display_name: m.id for m in members}

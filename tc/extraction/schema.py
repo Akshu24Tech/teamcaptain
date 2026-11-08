@@ -9,10 +9,21 @@ from pydantic import BaseModel, Field
 
 Kind = Literal["commitment", "assignment", "tentative"]
 
+# What a message can do to a task that is ALREADY being tracked. Phase 1: completion only.
+UpdateIntent = Literal["done"]
+
 
 class ChatLine(BaseModel):
     speaker: str
     text: str
+
+
+class OpenTask(BaseModel):
+    """A task already being tracked, shown to the extractor so it can spot updates."""
+
+    short_no: int
+    task: str
+    owner: str | None  # resolved member display name, or None if unassigned
 
 
 class ExtractionInput(BaseModel):
@@ -23,6 +34,7 @@ class ExtractionInput(BaseModel):
     sent_at: datetime  # timezone-aware
     members: list[str]  # display names (and @usernames) of the team
     context: list[ChatLine] = Field(default_factory=list)  # earlier messages, oldest first
+    open_tasks: list[OpenTask] = Field(default_factory=list)  # tasks already being tracked
 
 
 class RawCandidate(BaseModel):
@@ -35,8 +47,17 @@ class RawCandidate(BaseModel):
     evidence_quote: str = Field(min_length=2)
 
 
+class RawUpdate(BaseModel):
+    """A change to an existing task the model believes the message reports. Untrusted."""
+
+    intent: UpdateIntent
+    task_ref: str = Field(min_length=1)  # the model's words for which task, e.g. "the PPT" or "#2"
+    evidence_quote: str = Field(min_length=2)
+
+
 class RawExtraction(BaseModel):
     commitments: list[RawCandidate] = Field(default_factory=list)
+    updates: list[RawUpdate] = Field(default_factory=list)
 
 
 class Candidate(BaseModel):
@@ -52,6 +73,16 @@ class Candidate(BaseModel):
     confidence: float
 
 
+class CommitmentUpdate(BaseModel):
+    """A verified update pointing at a real open task, ready to confirm with a human."""
+
+    intent: UpdateIntent
+    short_no: int  # the task this update refers to
+    task: str  # that task's text, for the confirmation message
+    evidence_quote: str
+    confidence: float
+
+
 class Rejection(BaseModel):
     """A candidate the verifier threw away, and why. Logged for the evaluation chapter."""
 
@@ -61,6 +92,7 @@ class Rejection(BaseModel):
 
 class ExtractionResult(BaseModel):
     candidates: list[Candidate] = Field(default_factory=list)
+    updates: list[CommitmentUpdate] = Field(default_factory=list)
     rejected: list[Rejection] = Field(default_factory=list)
     skipped_by_prefilter: bool = False
     extractor: str = ""

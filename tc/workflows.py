@@ -10,6 +10,7 @@ Rules every function here follows (see CLAUDE.md):
 
 from __future__ import annotations
 
+import math
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -18,7 +19,15 @@ import inngest
 from tc import views
 from tc.bot.telegram import TelegramClient
 from tc.config import settings
-from tc.db import OPEN_STATUSES, Commitment, CommitmentStatus, as_aware, get_session, utcnow
+from tc.db import (
+    OPEN_STATUSES,
+    Commitment,
+    CommitmentStatus,
+    Message,
+    as_aware,
+    get_session,
+    utcnow,
+)
 from tc.events import (
     COMMITMENT_CANCELLED,
     COMMITMENT_COMPLETED,
@@ -30,7 +39,14 @@ from tc.events import (
 from tc.extraction.extractor import run_extraction
 from tc.extraction.factory import get_extractor
 from tc.inngest_client import client
-from tc.repo import all_teams, build_extraction_input, create_proposals, log_event, set_status
+from tc.repo import (
+    all_teams,
+    build_extraction_input,
+    by_short_no,
+    create_proposals,
+    log_event,
+    set_status,
+)
 
 _MATCH_ID = "async.data.commitment_id == event.data.commitment_id"
 _MIN_WAIT = timedelta(seconds=1)
@@ -50,8 +66,17 @@ async def _clock() -> str:
     return utcnow().isoformat()
 
 
+def _seconds(delta: timedelta) -> timedelta:
+    """Inngest rejects wait timeouts that aren't a whole number of seconds.
+
+    A deadline minus 'now' almost always carries microseconds, so round every
+    wait up to the next whole second (never below the 1s floor).
+    """
+    return timedelta(seconds=max(1, math.ceil(delta.total_seconds())))
+
+
 def _wait(until: datetime, now: datetime) -> timedelta:
-    return max(_MIN_WAIT, until - now)
+    return _seconds(max(_MIN_WAIT, until - now))
 
 
 async def _is_active(commitment_id: str, version: int) -> bool:
@@ -83,6 +108,28 @@ async def _notify(commitment_id: str, version: int, kind: str) -> dict[str, Any]
     return {"sent": True}
 
 
+async def prompt_completions(message_id: str, updates: list[dict[str, Any]]) -> dict[str, Any]:
+    """Ask the owner to confirm each detected completion. The DB is re-checked first:
+    a task already closed (or no longer open) gets no prompt."""
+    prompted = 0
+    async with get_session() as session:
+        message = await session.get(Message, message_id)
+        if message is None:
+            return {"prompted": 0}
+        for u in updates:
+            if u["intent"] != "done":
+                continue
+            c = await by_short_no(session, message.team_id, int(u["short_no"]))
+            if c is None or c.status not in OPEN_STATUSES:
+                continue
+            v = await views.load_view(session, c.id)
+            text, markup = views.confirm_done(v, u["evidence_quote"])
+            chat_id = v.team.chat_id
+            await _send(chat_id, text, markup)
+            prompted += 1
+    return {"prompted": prompted}
+
+
 # --------------------------------------------------------------------------- functions
 
 @client.create_function(
@@ -106,8 +153,15 @@ async def process_message(ctx: inngest.Context) -> dict[str, Any]:
         return result.model_dump(mode="json")
 
     result = await ctx.step.run("extract", extract)
+
+    # A message can report an existing task finished (an update) even when it starts no
+    # new commitment — so handle updates before the early return below.
+    if result["updates"]:
+        await ctx.step.run("prompt-completions", prompt_completions, message_id, result["updates"])
+
     if result["skipped_by_prefilter"] or not result["candidates"]:
-        return {"proposals": 0, "rejected": len(result["rejected"]),
+        return {"proposals": 0, "updates": len(result["updates"]),
+                "rejected": len(result["rejected"]),
                 "skipped": result["skipped_by_prefilter"]}
 
     async def save() -> list[str]:
@@ -167,7 +221,7 @@ async def commitment_lifecycle(ctx: inngest.Context) -> dict[str, Any]:
                 "await-decision",
                 event=COMMITMENT_DECIDED,
                 if_exp=_MATCH_ID,
-                timeout=timedelta(hours=settings.confirmation_timeout_hours),
+                timeout=_seconds(timedelta(hours=settings.confirmation_timeout_hours)),
             )
             status = await step.run("status-after-wait", current_status)
 
@@ -210,7 +264,7 @@ async def commitment_lifecycle(ctx: inngest.Context) -> dict[str, Any]:
         """True if the task was completed (or closed) during the wait."""
         await step.wait_for_event(
             f"v{version}-await-done-{label}", event=COMMITMENT_COMPLETED, if_exp=_MATCH_ID,
-            timeout=timeout,
+            timeout=_seconds(timeout),
         )
         return await finished(label)
 

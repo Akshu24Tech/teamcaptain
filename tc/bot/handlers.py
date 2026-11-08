@@ -206,6 +206,14 @@ async def _handle_callback(cq: dict[str, Any], tg: TelegramClient, send_event: S
                              {"commitment_id": c.id, "decision": "yes" if yes else "no"})
             return
 
+        if action == "dx":
+            # Owner tapped "No, still open" on a detected-completion prompt.
+            await tg.answer_callback(cq["id"], "Okay, still tracking it.")
+            if msg:
+                await tg.edit_message(msg["chat"]["id"], msg["message_id"],
+                                      f"↩️ #{c.short_no} still open: {esc(c.task)}")
+            return
+
         if action == "d":
             responsible = c.owner_member_id == member.id or (
                 c.owner_member_id is None and c.creator_member_id == member.id)

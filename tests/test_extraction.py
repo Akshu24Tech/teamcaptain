@@ -7,18 +7,23 @@ import pytest
 from tc.extraction.extractor import LLMExtractor, RuleBasedExtractor, run_extraction
 from tc.extraction.owners import resolve_owner
 from tc.extraction.prefilter import should_extract
-from tc.extraction.schema import ChatLine, ExtractionInput, RawCandidate
-from tc.extraction.verify import verify_candidates
+from tc.extraction.schema import ChatLine, ExtractionInput, OpenTask, RawCandidate, RawUpdate
+from tc.extraction.verify import verify_candidates, verify_updates
 from tc.llm import LLMError
 
 TZ = ZoneInfo("Asia/Kolkata")
 NOW = datetime(2026, 11, 9, 10, 0, tzinfo=TZ)
 MEMBERS = ["Akshu", "Rahul Sharma", "Priya", "Aman"]
+OPEN = [
+    OpenTask(short_no=1, task="Make the PPT", owner="Akshu"),
+    OpenTask(short_no=2, task="Set up the database", owner="Rahul Sharma"),
+]
 
 
-def inp(text: str, speaker: str = "Akshu", context: list[ChatLine] | None = None):
+def inp(text: str, speaker: str = "Akshu", context: list[ChatLine] | None = None,
+        open_tasks: list[OpenTask] | None = None):
     return ExtractionInput(speaker=speaker, text=text, sent_at=NOW, members=MEMBERS,
-                           context=context or [])
+                           context=context or [], open_tasks=open_tasks or [])
 
 
 class FakeModel:
@@ -154,3 +159,64 @@ async def test_baseline_assignment() -> None:
     result = await run_extraction(RuleBasedExtractor(), inp("Priya please write the intro"), TZ)
     assert result.candidates[0].owner == "Priya"
     assert result.candidates[0].kind == "assignment"
+
+
+# --- richer detection: completion of an existing task --------------------------------
+
+def test_prefilter_completion_needs_open_tasks() -> None:
+    assert not should_extract("the PPT is done", has_context=False, has_open_tasks=False)[0]
+    assert should_extract("the PPT is done", has_context=False, has_open_tasks=True)[0]
+
+
+def test_prefilter_completion_ignores_status_question() -> None:
+    assert not should_extract("is the PPT done?", has_context=False, has_open_tasks=True)[0]
+
+
+def test_update_matches_by_explicit_number() -> None:
+    raw = [RawUpdate(intent="done", task_ref="#1", evidence_quote="#1 done")]
+    ok, _ = verify_updates(raw, inp("#1 done", open_tasks=OPEN))
+    assert ok[0].short_no == 1 and ok[0].confidence == 1.0
+
+
+def test_update_matches_by_keyword() -> None:
+    raw = [RawUpdate(intent="done", task_ref="the ppt", evidence_quote="ppt is done")]
+    ok, _ = verify_updates(raw, inp("the ppt is done", open_tasks=OPEN))
+    assert ok[0].short_no == 1 and ok[0].confidence == 0.8
+
+
+def test_update_rejects_evidence_not_in_message() -> None:
+    raw = [RawUpdate(intent="done", task_ref="the ppt", evidence_quote="all finished now")]
+    ok, rejected = verify_updates(raw, inp("ppt is done", open_tasks=OPEN))
+    assert ok == [] and rejected[0].reason == "evidence_not_in_message"
+
+
+def test_update_rejects_when_nothing_matches() -> None:
+    raw = [RawUpdate(intent="done", task_ref="the logo", evidence_quote="logo is done")]
+    ok, rejected = verify_updates(raw, inp("logo is done", speaker="Aman", open_tasks=OPEN))
+    assert ok == [] and rejected[0].reason == "no_matching_open_task"
+
+
+def test_update_rejects_someone_elses_task() -> None:
+    raw = [RawUpdate(intent="done", task_ref="#2", evidence_quote="#2 done")]
+    ok, rejected = verify_updates(raw, inp("#2 done", speaker="Akshu", open_tasks=OPEN))
+    assert ok == [] and rejected[0].reason == "not_speakers_task"
+
+
+def test_update_falls_back_to_sole_open_task() -> None:
+    one = [OpenTask(short_no=5, task="Write the report", owner="Akshu")]
+    raw = [RawUpdate(intent="done", task_ref="it", evidence_quote="all done")]
+    ok, _ = verify_updates(raw, inp("all done", open_tasks=one))
+    assert ok[0].short_no == 5 and ok[0].confidence == 0.6
+
+
+async def test_baseline_detects_completion_as_update() -> None:
+    result = await run_extraction(RuleBasedExtractor(), inp("ppt done", open_tasks=OPEN), TZ)
+    assert result.candidates == []
+    assert result.updates[0].short_no == 1
+
+
+async def test_llm_detects_completion_update() -> None:
+    model = FakeModel(json.dumps({"commitments": [], "updates": [
+        {"intent": "done", "task_ref": "the ppt", "evidence_quote": "ppt is done"}]}))
+    result = await run_extraction(LLMExtractor(model), inp("the ppt is done", open_tasks=OPEN), TZ)
+    assert result.candidates == [] and result.updates[0].short_no == 1
