@@ -1,0 +1,86 @@
+<svg width="100%" viewBox="0 0 680 632" role="img" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+<title>TeamCaptain architecture</title>
+<desc>A message flows from a Telegram group into the bot, through the process-message workflow (prefilter, LLM extractor, verifier), to human confirmation, then into the commitment-lifecycle workflow that reminds and escalates. Postgres is the source of truth and messages flow back to the group.</desc>
+<style>
+  .th { font-size: 14px; font-weight: 500; }
+  .ts { font-size: 12px; font-weight: 400; }
+  .arr { stroke: #73726c; stroke-width: 1.5; fill: none; }
+  .leader { stroke: #9c9a92; stroke-width: 1; stroke-dasharray: 4 4; fill: none; }
+  .lbl { fill: #5F5E5A; }
+  .gray-fill { fill: #F1EFE8; stroke: #5F5E5A; }
+  .gray-t { fill: #2C2C2A; } .gray-s { fill: #5F5E5A; }
+  .blue-fill { fill: #E6F1FB; stroke: #185FA5; }
+  .blue-t { fill: #0C447C; } .blue-s { fill: #185FA5; }
+  .purple-fill { fill: #EEEDFE; stroke: #534AB7; }
+  .purple-t { fill: #26215C; } .purple-s { fill: #534AB7; }
+  .teal-fill { fill: #E1F5EE; stroke: #0F6E56; }
+  .teal-t { fill: #04342C; } .teal-s { fill: #0F6E56; }
+  .amber-fill { fill: #FAEEDA; stroke: #854F0B; }
+  .amber-t { fill: #412402; } .amber-s { fill: #854F0B; }
+  @media (prefers-color-scheme: dark) {
+    .arr { stroke: #9c9a92; } .leader { stroke: #73726c; } .lbl { fill: #9c9a92; }
+    .gray-fill { fill: #2C2C2A; stroke: #B4B2A9; } .gray-t { fill: #F1EFE8; } .gray-s { fill: #D3D1C7; }
+    .blue-fill { fill: #0C447C; stroke: #85B7EB; } .blue-t { fill: #E6F1FB; } .blue-s { fill: #B5D4F4; }
+    .purple-fill { fill: #3C3489; stroke: #AFA9EC; } .purple-t { fill: #EEEDFE; } .purple-s { fill: #CECBF6; }
+    .teal-fill { fill: #085041; stroke: #5DCAA5; } .teal-t { fill: #E1F5EE; } .teal-s { fill: #9FE1CB; }
+    .amber-fill { fill: #633806; stroke: #EF9F27; } .amber-t { fill: #FAEEDA; } .amber-s { fill: #FAC775; }
+  }
+</style>
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
+</defs>
+
+<text class="ts lbl" x="636" y="30" text-anchor="end">reminders &amp; reports back to the group</text>
+
+<rect class="gray-fill" x="240" y="40" width="200" height="48" rx="8" stroke-width="0.5"/>
+<text class="th gray-t" x="340" y="58" text-anchor="middle" dominant-baseline="central">Telegram group</text>
+<text class="ts gray-s" x="340" y="74" text-anchor="middle" dominant-baseline="central">people make promises</text>
+
+<line x1="340" y1="88" x2="340" y2="110" class="arr" marker-end="url(#arrow)"/>
+
+<rect class="blue-fill" x="200" y="112" width="280" height="56" rx="8" stroke-width="0.5"/>
+<text class="th blue-t" x="340" y="131" text-anchor="middle" dominant-baseline="central">Telegram bot (tc/bot)</text>
+<text class="ts blue-s" x="340" y="149" text-anchor="middle" dominant-baseline="central">stores chat, emits events — never calls AI</text>
+
+<line x1="340" y1="168" x2="340" y2="190" class="arr" marker-end="url(#arrow)"/>
+
+<rect class="purple-fill" x="60" y="192" width="560" height="152" rx="14" stroke-width="0.5"/>
+<text class="th purple-t" x="80" y="214" dominant-baseline="central">process-message — durable workflow</text>
+
+<rect class="teal-fill" x="80" y="236" width="160" height="70" rx="8" stroke-width="0.5"/>
+<text class="th teal-t" x="160" y="263" text-anchor="middle" dominant-baseline="central">Prefilter</text>
+<text class="ts teal-s" x="160" y="281" text-anchor="middle" dominant-baseline="central">cheap gate</text>
+
+<rect class="teal-fill" x="260" y="236" width="160" height="70" rx="8" stroke-width="0.5"/>
+<text class="th teal-t" x="340" y="263" text-anchor="middle" dominant-baseline="central">LLM extractor</text>
+<text class="ts teal-s" x="340" y="281" text-anchor="middle" dominant-baseline="central">Groq / Ollama</text>
+
+<rect class="teal-fill" x="440" y="236" width="160" height="70" rx="8" stroke-width="0.5"/>
+<text class="th teal-t" x="520" y="263" text-anchor="middle" dominant-baseline="central">Verifier</text>
+<text class="ts teal-s" x="520" y="281" text-anchor="middle" dominant-baseline="central">checks every claim</text>
+
+<line x1="240" y1="271" x2="258" y2="271" class="arr" marker-end="url(#arrow)"/>
+<line x1="420" y1="271" x2="438" y2="271" class="arr" marker-end="url(#arrow)"/>
+<text class="ts purple-s" x="340" y="328" text-anchor="middle" dominant-baseline="central">AI points at evidence; code decides the facts</text>
+
+<line x1="340" y1="344" x2="340" y2="366" class="arr" marker-end="url(#arrow)"/>
+
+<rect class="amber-fill" x="200" y="368" width="280" height="56" rx="8" stroke-width="0.5"/>
+<text class="th amber-t" x="340" y="387" text-anchor="middle" dominant-baseline="central">Human confirms</text>
+<text class="ts amber-s" x="340" y="405" text-anchor="middle" dominant-baseline="central">owner taps Yes to start tracking</text>
+
+<line x1="340" y1="424" x2="340" y2="446" class="arr" marker-end="url(#arrow)"/>
+
+<rect class="purple-fill" x="160" y="448" width="360" height="56" rx="8" stroke-width="0.5"/>
+<text class="th purple-t" x="340" y="467" text-anchor="middle" dominant-baseline="central">commitment-lifecycle — durable workflow</text>
+<text class="ts purple-s" x="340" y="485" text-anchor="middle" dominant-baseline="central">remind · overdue · escalate</text>
+
+<line x1="520" y1="476" x2="640" y2="476" class="arr"/>
+<path d="M640 476 L640 64 L442 64" class="arr" marker-end="url(#arrow)"/>
+
+<line x1="340" y1="504" x2="340" y2="548" class="leader"/>
+
+<rect class="gray-fill" x="160" y="548" width="360" height="52" rx="8" stroke-width="0.5"/>
+<text class="th gray-t" x="340" y="567" text-anchor="middle" dominant-baseline="central">Postgres — the source of truth</text>
+<text class="ts gray-s" x="340" y="585" text-anchor="middle" dominant-baseline="central">every step re-checks it before acting</text>
+</svg>

@@ -39,6 +39,11 @@ flowchart TD
     LC -.re-checks before every message.-> DB
 ```
 
+A standalone, presentation-ready version of the same diagram is in
+[architecture.svg](architecture.svg) (renders in light and dark mode):
+
+![TeamCaptain architecture](architecture.svg)
+
 ## What each functional component does
 
 | Component | Folder | Its one job |
